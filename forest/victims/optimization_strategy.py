@@ -63,10 +63,7 @@ class ConservativeStrategy(Strategy):
         self.epochs = 40
         self.batch_size = 128
         self.optimizer = "SGD"
-        if args.wolfe:
-            self.scheduler = "wolfe"
-        else:
-            self.scheduler = "linear"
+        self.scheduler = "linear"
         self.weight_decay = 5e-4
         self.augmentations = True
         self.privacy = dict(clip=None, noise=None)

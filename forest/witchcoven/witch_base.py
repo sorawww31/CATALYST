@@ -58,6 +58,10 @@ class _Witch():
     def _brew(self, victim, kettle):
         """Run generalized iterative routine."""
         print(f'Starting brewing procedure ...')
+        if kettle.args.no_paugment:
+            print('Not augmenting poison batch in WitchCoven')
+        else:
+            print('Augmenting poison batch in WitchCoven')
         self._initialize_brew(victim, kettle)
         poisons, scores = [], torch.ones(self.args.restarts) * 10_000
 
@@ -219,9 +223,9 @@ class _Witch():
             inputs[batch_positions] += delta_slice
 
             # Perform differentiable data augmentation
-            if self.args.paugment:
+            if self.args.no_paugment is False:
                 inputs = kettle.augment(inputs, randgen=randgen)
-
+                
             # Define the loss objective and compute gradients
             closure = self._define_objective(inputs, labels, self.targets, self.intended_classes,
                                              self.true_classes)

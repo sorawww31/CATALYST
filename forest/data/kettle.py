@@ -47,7 +47,7 @@ class Kettle():
         """Initialize with given specs..."""
         self.args, self.setup = args, setup
         self.batch_size = batch_size
-        self.augmentations = augmentations
+        self.augmentations:bool = augmentations
         self.trainset, self.validset = self.prepare_data(normalize=True)
         num_workers = self.get_num_workers()
 
@@ -150,7 +150,7 @@ class Kettle():
 
 
         # Train augmentations are handled separately as they possibly have to be backpropagated
-        if self.augmentations is not None or self.args.paugment:
+        if self.augmentations is not None or not self.args.no_paugment:
             if 'CIFAR' in self.args.dataset:
                 params = dict(source_size=32, target_size=32, shift=8, fliplr=True)
             elif 'MNIST' in self.args.dataset:
@@ -160,10 +160,12 @@ class Kettle():
             elif 'ImageNet' in self.args.dataset:
                 params = dict(source_size=224, target_size=224, shift=224 // 4, fliplr=True)
 
-            if self.augmentations == 'default':
+            if self.augmentations is True:
                 self.augment = RandomTransform(**params, mode='bilinear')
-            elif not self.defs.augmentations:
-                print('Data augmentations are disabled.')
+            elif self.augmentations is False:
+                self.augment = RandomTransform(**params, mode='bilinear')
+            elif not self.augmentations:
+                print('Data augmentations are default.')
                 self.augment = RandomTransform(**params, mode='bilinear')
             else:
                 raise ValueError(f'Invalid diff. transformation given: {self.augmentations}.')
