@@ -119,14 +119,16 @@ def options():
         help="Shuffle poison batch during optimization",
     )
     parser.add_argument(
-        "--paugment",
-        action="store_false",
+        "--no_paugment",
+        default=False,
+        action="store_true",
         help="Do not augment poison batch during optimization",
+        #help="Augment poison batch during optimization",
     )
     parser.add_argument(
         "--data_aug",
-        type=str,
-        default="default",
+        default=True,
+        action="store_true",
         help="Mode of diff. data augmentation.",
     )
 
@@ -219,6 +221,7 @@ def options():
     parser.add_argument("--epochs", default=None, type=int)
     parser.add_argument(
         "--noaugment",
+        default=False,
         action="store_true",
         help="Do not use data augmentation during training.",
     )

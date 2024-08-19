@@ -84,6 +84,10 @@ class _VictimBase:
     def train(self, kettle, max_epoch=None):
         """Clean (pre)-training of the chosen model, no poisoning involved."""
         print("Starting clean training ...")
+        if kettle.args.noaugment:
+            print("Kettle is not Augmentated.")
+        else:
+            print("Kettle is Augmentated.")
         return self._iterate(kettle, poison_delta=None, max_epoch=max_epoch)
 
     def retrain(self, kettle, poison_delta):
@@ -98,6 +102,7 @@ class _VictimBase:
         for runs in range(self.args.vruns):
             self.initialize()
             print("Model reinitialized to random seed.")
+            print(f"noagument: {kettle.args.noaugment}")
             run_stats.append(self._iterate(kettle, poison_delta=poison_delta))
 
         return average_dicts(run_stats)
