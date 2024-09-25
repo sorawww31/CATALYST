@@ -279,6 +279,6 @@ def options():
         type=float,
         nargs=2,
         default=None,
-        help="Wolfe conditions for line search",
+        help="Wolfe conditions for line search c2 = wolfe[0], c1 = wolfe[1]",
     )
     return parser
