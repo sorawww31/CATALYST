@@ -32,7 +32,7 @@ class _VictimDistributed(_VictimSingle):
         if self.args.ensemble > 1:
             if self.args.ensemble != self.args.world_size:
                 raise ValueError('The ensemble option is disregarded in distributed mode. One model will be launched per instance.')
-
+        self.train_counter = 1 if self.args.pretrained else 0
 
     def initialize(self, seed=None):
         if self.args.modelkey is None:

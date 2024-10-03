@@ -44,6 +44,8 @@ class _VictimEnsemble(_VictimBase):
             print(f'{model_name} initialized as model {idx}')
         self.defs = self.definitions[0]
 
+        self.train_counter = 1 if self.args.pretrained else 0
+        
     """ METHODS FOR (CLEAN) TRAINING AND TESTING OF BREWED POISONS"""
 
     def _iterate(self, kettle, poison_delta, max_epoch=None):
