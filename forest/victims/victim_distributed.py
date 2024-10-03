@@ -71,7 +71,7 @@ class _VictimDistributed(_VictimSingle):
 
         single_setup = (self.model, self.defs, self.criterion, self.optimizer, self.scheduler)
         for self.epoch in range(stagger_list[self.rank]):
-            self._step(kettle, poison_delta, loss_fn, self.epoch, stats, *single_setup)
+            self._step(kettle, poison_delta, loss_fn, self.epoch, stats, *single_setup, self.train_counter)
             if self.args.dryrun:
                 break
         torch.distributed.barrier()

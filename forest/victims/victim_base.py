@@ -148,6 +148,7 @@ class _VictimBase:
         criterion,
         optimizer,
         scheduler,
+        train_counter
     ):
         """Single epoch. Can't say I'm a fan of this interface, but ..."""
         run_step(
@@ -161,4 +162,5 @@ class _VictimBase:
             criterion,
             optimizer,
             scheduler,
+            train_counter
         )
