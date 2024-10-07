@@ -33,7 +33,6 @@ if __name__ == "__main__":
         stats_clean = None
     else:
         stats_clean = model.train(data, max_epoch=args.max_epoch)
-        #stats_clean = model.train(data, max_epoch=2)
     train_time = time.time()
 
     poison_delta = witch.brew(model, data)
