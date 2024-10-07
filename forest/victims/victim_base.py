@@ -47,7 +47,6 @@ class _VictimBase:
                 f"More models requested than ensemble size."
                 f"Increase ensemble size or reduce models."
             )
-        self.train_counter = 1 if self.args.pretrained else 0
         self.initialize()
 
     def gradient(self, images, labels):
@@ -90,7 +89,6 @@ class _VictimBase:
         else:
             print("Kettle is Augmentated.")
         
-        self.train_counter += 1
         return self._iterate(kettle, poison_delta=None, max_epoch=max_epoch)
 
     def retrain(self, kettle, poison_delta):
@@ -147,8 +145,7 @@ class _VictimBase:
         defs,
         criterion,
         optimizer,
-        scheduler,
-        train_counter
+        scheduler
     ):
         """Single epoch. Can't say I'm a fan of this interface, but ..."""
         run_step(
@@ -161,6 +158,5 @@ class _VictimBase:
             defs,
             criterion,
             optimizer,
-            scheduler,
-            train_counter
+            scheduler
         )

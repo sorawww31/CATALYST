@@ -30,7 +30,6 @@ class _VictimSingle(_VictimBase):
         else:
             self.model_init_seed = self.args.modelkey
         set_random_seed(self.model_init_seed)
-        self.train_counter = 1 if self.args.pretrained else 0
         self.model, self.defs, self.criterion, self.optimizer, self.scheduler = self._initialize_model(self.args.net[0])
 
         self.model.to(**self.setup)
@@ -52,7 +51,7 @@ class _VictimSingle(_VictimBase):
 
         single_setup = (self.model, self.defs, self.criterion, self.optimizer, self.scheduler)
         for self.epoch in range(max_epoch):
-            self._step(kettle, poison_delta, loss_fn, self.epoch, stats, *single_setup , self.train_counter)
+            self._step(kettle, poison_delta, loss_fn, self.epoch, stats, *single_setup)
             if self.args.dryrun:
                 break
         return stats
