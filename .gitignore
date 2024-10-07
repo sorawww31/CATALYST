@@ -8,6 +8,8 @@ result/
 *.csv
 *.log
 
+/tables
+/tables/*
 # Poison output
 *.png
 

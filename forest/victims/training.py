@@ -228,8 +228,12 @@ def run_step(
                         * defs.privacy["noise"]
                     )
                     param.grad += noise_sample
-        
-        if (defs.epochs / (epoch + 1e-5) < 4 / 3) and kettle.args.wolfe:
+
+        if (
+            (defs.epochs / (epoch + 1e-5) < 4 / 3)
+            and kettle.args.wolfe
+            and poison_delta is not None
+        ):
             alpha = renewal_wolfecondition_stepsize(
                 kettle.args,
                 defs,
