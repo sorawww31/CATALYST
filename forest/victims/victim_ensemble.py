@@ -44,8 +44,6 @@ class _VictimEnsemble(_VictimBase):
             print(f'{model_name} initialized as model {idx}')
         self.defs = self.definitions[0]
 
-        self.train_counter = 1 if self.args.pretrained else 0
-
     """ METHODS FOR (CLEAN) TRAINING AND TESTING OF BREWED POISONS"""
 
     def _iterate(self, kettle, poison_delta, max_epoch=None):
@@ -76,7 +74,7 @@ class _VictimEnsemble(_VictimBase):
             def loss_fn(model, outputs, labels):
                 return criterion(outputs, labels)
             for epoch in range(stagger_list[idx]):
-                self._step(kettle, poison_delta, loss_fn, epoch, stats, *single_model, self.train_counter)
+                self._step(kettle, poison_delta, loss_fn, epoch, stats, *single_model)
                 if self.args.dryrun:
                     break
             # Return to CPU

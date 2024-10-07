@@ -32,7 +32,6 @@ class _VictimDistributed(_VictimSingle):
         if self.args.ensemble > 1:
             if self.args.ensemble != self.args.world_size:
                 raise ValueError('The ensemble option is disregarded in distributed mode. One model will be launched per instance.')
-        self.train_counter = 1 if self.args.pretrained else 0
 
     def initialize(self, seed=None):
         if self.args.modelkey is None:
@@ -71,7 +70,7 @@ class _VictimDistributed(_VictimSingle):
 
         single_setup = (self.model, self.defs, self.criterion, self.optimizer, self.scheduler)
         for self.epoch in range(stagger_list[self.rank]):
-            self._step(kettle, poison_delta, loss_fn, self.epoch, stats, *single_setup, self.train_counter)
+            self._step(kettle, poison_delta, loss_fn, self.epoch, stats, *single_setup)
             if self.args.dryrun:
                 break
         torch.distributed.barrier()
