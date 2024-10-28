@@ -6,6 +6,7 @@ import datetime
 import torch
 
 from ..consts import BENCHMARK, DEBUG_TRAINING, NON_BLOCKING
+from ..utils import cw_loss
 from .utils import pgd_step, print_and_save_stats
 
 torch.backends.cudnn.benchmark = BENCHMARK
@@ -61,17 +62,36 @@ def get_optimizers(model, args, defs):
     return optimizer, scheduler
 
 
-def renewal_wolfecondition_stepsize(args, defs, model, loss_fn, alpha, inputs, labels):
+def renewal_wolfecondition_stepsize(
+    kettle, args, defs, model, criterion, alpha, optimizer_lr, targetset, setup
+):
     c2, c1 = args.wolfe
 
+    def closure_fn(model, inputs, labels):
+        """Compute the loss for the given model, inputs, and labels."""
+        outputs = model(inputs)
+        if args.target_criterion in ["cw", "carlini-wagner"]:
+            criterion_fn = cw_loss  # Carlini-Wagner loss
+        else:
+            criterion_fn = torch.nn.CrossEntropyLoss()  # Default to cross-entropy loss
+
+        loss = criterion_fn(outputs, labels)  # Calculate the loss using the criterion
+        return loss
+
     copy_model = copy.deepcopy(model)
-    fx = loss_fn(copy_model, copy_model(inputs), labels)  # 損失を計算
+    intended_class = kettle.poison_setup["intended_class"]
+    intended_labels = torch.tensor(intended_class).to(
+        device=setup["device"], dtype=torch.long
+    )
+    target_images = torch.stack([data[0] for data in targetset]).to(**setup)
+
+    fx = criterion(copy_model(target_images), intended_labels)  # 損失を計算
+
     nabla_fx = torch.autograd.grad(fx, copy_model.parameters(), create_graph=True)
 
     # Wolfe条件を満たす学習率を探索
-    # Wolfe条件を満たす学習率を探索
     max_iters = 40  # 最大で40回の反復を行う
-    tau = 0.75  # 学習率の縮小係数
+    omega = 0.75  # 学習率の縮小係数
     wolfe_satisfied = False
 
     for _ in range(max_iters):
@@ -81,7 +101,7 @@ def renewal_wolfecondition_stepsize(args, defs, model, loss_fn, alpha, inputs, l
             p.data -= alpha * g
 
         # 新しい損失を計算
-        fx_new = loss_fn(copy_model_temp, copy_model_temp(inputs), labels)
+        fx_new = criterion(copy_model_temp(target_images), intended_labels)
 
         # Wolfeの十分減少条件を確認
         sufficient_decrease = fx_new <= fx - c1 * alpha * sum(
@@ -104,8 +124,11 @@ def renewal_wolfecondition_stepsize(args, defs, model, loss_fn, alpha, inputs, l
                 break
 
         # 学習率を縮小して再試行
-        alpha *= tau
-
+        alpha *= omega
+        if args.bound_lr_rate is not None:
+            if optimizer_lr * args.bound_lr_rate > alpha:
+                print("学習率が小さすぎるのを防ぎます。")
+                return optimizer_lr
     if not wolfe_satisfied:
         print(
             "Wolfe条件を満たす学習率が見つかりませんでした。最小のalphaを使用します。"
@@ -148,7 +171,7 @@ def run_step(
         loader = kettle.partialloader
     else:
         loader = kettle.trainloader
-
+    current_lr = optimizer.param_groups[0]["lr"]
     for batch, (inputs, labels, ids) in enumerate(loader):
         # Prep Mini-Batch
         model.train()
@@ -230,18 +253,20 @@ def run_step(
                     param.grad += noise_sample
 
         if (
-            (defs.epochs / (epoch + 1e-5) < 4 / 3)
+            (epoch > kettle.args.linesearch_epoch)
             and kettle.args.wolfe
             and poison_delta is not None
         ):
             alpha = renewal_wolfecondition_stepsize(
+                kettle,
                 kettle.args,
                 defs,
                 model,
-                loss_fn,
-                optimizer.param_groups[0]["lr"] * 1.5,
-                inputs,
-                labels,
+                criterion,
+                current_lr * 2,
+                optimizer.param_groups[0]["lr"],
+                kettle.targetset,
+                kettle.setup,
             )
             optimizer.param_groups[0]["lr"] = alpha
             current_lr = alpha

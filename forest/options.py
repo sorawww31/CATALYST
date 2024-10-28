@@ -123,7 +123,7 @@ def options():
         default=False,
         action="store_true",
         help="Do not augment poison batch during optimization",
-        #help="Augment poison batch during optimization",
+        # help="Augment poison batch during optimization",
     )
     parser.add_argument(
         "--data_aug",
@@ -280,5 +280,29 @@ def options():
         nargs=2,
         default=None,
         help="Wolfe conditions for line search c2 = wolfe[0], c1 = wolfe[1]",
+    )
+
+    parser.add_argument(
+        "--linesearch_epoch",
+        type=int,
+        nargs=1,
+        default=30,
+        help="Epoch of starting Line Search with wolfe condition",
+    )
+
+    parser.add_argument(
+        "--omega",
+        type=float,
+        nargs=1,
+        default=0.75,
+        help="Omega for Line Search",
+    )
+
+    parser.add_argument(
+        "--bound_lr_rate",
+        type=float,
+        nargs=1,
+        default=None,
+        help="Bound for lr rate in Line Search",
     )
     return parser

@@ -1,12 +1,13 @@
 """Single model default victim class."""
 
-import torch
-import numpy as np
 from collections import defaultdict
 
+import numpy as np
+import torch
 
-from ..utils import set_random_seed
 from ..consts import BENCHMARK
+from ..utils import set_random_seed
+
 torch.backends.cudnn.benchmark = BENCHMARK
 
 from .victim_base import _VictimBase
@@ -30,12 +31,16 @@ class _VictimSingle(_VictimBase):
         else:
             self.model_init_seed = self.args.modelkey
         set_random_seed(self.model_init_seed)
-        self.model, self.defs, self.criterion, self.optimizer, self.scheduler = self._initialize_model(self.args.net[0])
+        self.model, self.defs, self.criterion, self.optimizer, self.scheduler = (
+            self._initialize_model(self.args.net[0])
+        )
 
         self.model.to(**self.setup)
         if torch.cuda.device_count() > 1:
             self.model = torch.nn.DataParallel(self.model)
-        print(f'{self.args.net[0]} model initialized with random key {self.model_init_seed}.')
+        print(
+            f"{self.args.net[0]} model initialized with random key {self.model_init_seed}."
+        )
 
     """ METHODS FOR (CLEAN) TRAINING AND TESTING OF BREWED POISONS"""
 
@@ -49,7 +54,13 @@ class _VictimSingle(_VictimBase):
         def loss_fn(model, outputs, labels):
             return self.criterion(outputs, labels)
 
-        single_setup = (self.model, self.defs, self.criterion, self.optimizer, self.scheduler)
+        single_setup = (
+            self.model,
+            self.defs,
+            self.criterion,
+            self.optimizer,
+            self.scheduler,
+        )
         for self.epoch in range(max_epoch):
             self._step(kettle, poison_delta, loss_fn, self.epoch, stats, *single_setup)
             if self.args.dryrun:
@@ -64,7 +75,11 @@ class _VictimSingle(_VictimBase):
             normal_loss = self.criterion(outputs, labels)
             model.eval()
             if self.args.adversarial != 0:
-                target_loss = 1 / self.defs.batch_size * self.criterion(model(poison_targets), true_classes)
+                target_loss = (
+                    1
+                    / self.defs.batch_size
+                    * self.criterion(model(poison_targets), true_classes)
+                )
             else:
                 target_loss = 0
             model.train()
@@ -75,8 +90,10 @@ class _VictimSingle(_VictimBase):
         self.epoch += 1
         if self.epoch > self.defs.epochs:
             self.epoch = 0
-            print('Model reset to epoch 0.')
-            self.model, self.criterion, self.optimizer, self.scheduler = self._initialize_model()
+            print("Model reset to epoch 0.")
+            self.model, self.criterion, self.optimizer, self.scheduler = (
+                self._initialize_model()
+            )
             self.model.to(**self.setup)
             if torch.cuda.device_count() > 1:
                 self.model = torch.nn.DataParallel(self.model)
@@ -86,10 +103,12 @@ class _VictimSingle(_VictimBase):
 
     def eval(self, dropout=False):
         """Switch everything into evaluation mode."""
+
         def apply_dropout(m):
             """https://discuss.pytorch.org/t/dropout-at-test-time-in-densenet/6738/6."""
             if type(m) == torch.nn.Dropout:
                 m.train()
+
         self.model.eval()
         if dropout:
             self.model.apply(apply_dropout)
