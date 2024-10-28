@@ -88,7 +88,7 @@ class _VictimBase:
             print("Kettle is not Augmentated.")
         else:
             print("Kettle is Augmentated.")
-        
+
         return self._iterate(kettle, poison_delta=None, max_epoch=max_epoch)
 
     def retrain(self, kettle, poison_delta):
@@ -145,7 +145,7 @@ class _VictimBase:
         defs,
         criterion,
         optimizer,
-        scheduler
+        scheduler,
     ):
         """Single epoch. Can't say I'm a fan of this interface, but ..."""
         run_step(
@@ -158,5 +158,5 @@ class _VictimBase:
             defs,
             criterion,
             optimizer,
-            scheduler
+            scheduler,
         )

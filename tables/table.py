@@ -1,7 +1,7 @@
 import pandas as pd
 
 # CSVファイルを読み込む
-file_path = "/hpc_share/ee217092/poisoning-gradient-matching/tables/table.py"
+file_path = "tables/wolfe_5_1_table_1_3/table_ResNet18_single-class0.9_1e-4_ablation_aug_aug.csv"
 df = pd.read_csv(file_path, delimiter="\t", on_bad_lines="skip")
 
 # 各行のカラム数が一致しているか確認
@@ -22,4 +22,4 @@ df = df.applymap(
 df.replace("", pd.NA, inplace=True)  # 空文字をNAに置換
 
 # 修正されたデータフレームを保存
-df.to_csv("fixed_table_ResNet18_single-class.csv", index=False, sep="\t")
+df.to_csv("fi", index=False, sep="\t")

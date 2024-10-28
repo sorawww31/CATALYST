@@ -9,21 +9,31 @@ BRITTLE_NETS = [
     "alexnet",
 ]  # handled with lower learning rate
 
-
 def training_strategy(model_name, args):
     """Parse training strategy."""
-    if args.optimization == "conservative":
-        defs = ConservativeStrategy(model_name, args)
-    elif args.optimization == "private":
-        defs = PrivacyStrategy(model_name, args)
-    elif args.optimization == "adversarial":
-        defs = AdversarialStrategy(model_name, args)
-    elif args.optimization == "basic":
-        defs = BasicStrategy(model_name, args)
-    elif args.optimization == "memory-saving":
-        defs = MemoryStrategy(model_name, args)
+    optim_tipe = args.optimization
+    """if len(args.optimization) > 1:
+        optim_tipe = args.optimization.pop(0)
     else:
+        optim_tipe = args.optimization[0]"""
+
+    print(f"Optimization strategy: {optim_tipe}")
+    if optim_tipe == "conservative":
+        defs = ConservativeStrategy(model_name, args)
+    elif optim_tipe == "private":
+        defs = PrivacyStrategy(model_name, args)
+    elif optim_tipe == "adversarial":
+        defs = AdversarialStrategy(model_name, args)
+    elif optim_tipe == "basic":
+        defs = BasicStrategy(model_name, args)
+    elif optim_tipe == "memory-saving":
+        defs = MemoryStrategy(model_name, args)
+    elif optim_tipe == "fast":
         defs = FastStrategy(model_name, args)
+    elif optim_tipe == "conservative_batch256":
+        defs = ConservativeStrategy_batch256(model_name, args)
+    elif optim_tipe == "conservative_on_AdamW":
+        defs = ConservativeStrategy_on_ADAM(model_name, args)
     return defs
 
 
@@ -185,4 +195,43 @@ class FastStrategy(Strategy):
         self.privacy = dict(clip=None, noise=None)
         self.adversarial_steps = 0
         self.validate = 20
+        super().__init__(model_name, args)
+
+
+@dataclass
+class ConservativeStrategy_batch256(Strategy):
+    """Default usual parameters, defines a config object."""
+
+    def __init__(self, model_name, args):
+        """Initialize training hyperparameters."""
+        self.lr = 0.1
+        self.epochs = 40
+        self.batch_size = 256
+        self.optimizer = "SGD"
+        self.scheduler = "linear"
+        self.weight_decay = 5e-4
+        self.augmentations = True
+        self.privacy = dict(clip=None, noise=None)
+        self.adversarial_steps = 0
+        self.validate = 10
+
+        super().__init__(model_name, args)
+
+
+class ConservativeStrategy_on_ADAM(Strategy):
+    """Default usual parameters, defines a config object."""
+
+    def __init__(self, model_name, args):
+        """Initialize training hyperparameters."""
+        self.lr = 0.001
+        self.epochs = 40
+        self.batch_size = 128
+        self.optimizer = "AdamW"
+        self.scheduler = "linear"
+        self.weight_decay = 1e-4
+        self.augmentations = True
+        self.privacy = dict(clip=None, noise=None)
+        self.adversarial_steps = 0
+        self.validate = 10
+
         super().__init__(model_name, args)
