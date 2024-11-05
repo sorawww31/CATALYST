@@ -1,6 +1,7 @@
 """Main class, holding information about models and training/testing routines."""
 
 import torch
+import torch.nn as nn
 import warnings
 
 from ..utils import cw_loss
@@ -98,6 +99,12 @@ class _Witch():
                 grad *= -1
         elif self.args.target_criterion in ['xent', 'cross-entropy']:
             self.target_grad, self.target_gnorm = victim.gradient(self.targets, self.intended_classes)
+        elif self.args.target_criterion in ['sharpness']:
+            criterion = nn.CrossEntropyLoss()
+            self.target_grad, self.target_gnorm = victim.sharp_grad(criterion, self.targets, self.intended_classes, self.args.sharpsigma)
+        elif self.args.target_criterion in ['worstsharp']:
+            criterion = nn.CrossEntropyLoss()
+            self.target_grad, self.target_gnorm = victim.worst_sharp_grad(criterion, self.targets, self.intended_classes, self.args.sharpsigma)
         else:
             raise ValueError('Invalid target criterion chosen ...')
         print(f'Target Grad Norm is {self.target_gnorm}')
@@ -198,6 +205,7 @@ class _Witch():
     def _batched_step(self, poison_delta, poison_bounds, example, victim, kettle):
         """Take a step toward minmizing the current target loss."""
         inputs, labels, ids = example
+        poison_delta.grad = torch.zeros_like(poison_delta)
 
         inputs = inputs.to(**self.setup)
         labels = labels.to(dtype=torch.long, device=self.setup['device'], non_blocking=NON_BLOCKING)

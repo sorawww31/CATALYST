@@ -108,8 +108,12 @@ def save_to_table(out_dir, name, dryrun, **kwargs):
 def record_results(
     kettle, brewed_loss, results, args, defs, modelkey, extra_stats=dict()
 ):
-    """Save output to a csv table."""
-    class_names = kettle.trainset.classes
+
+    # add svhn
+    if args.dataset == "SVHN":
+        class_names = [str(i) for i in range(10)]
+    else:
+        class_names = kettle.trainset.classes
     stats_clean, stats_rerun, stats_results = results
 
     def _maybe(stats, param, mean=False):
@@ -173,6 +177,7 @@ def record_results(
         step_decay=args.scheduling,
         ablation=args.ablation,
         benchmark_idx=args.benchmark_idx,
+        # Add --------
         wolfe_c2=args.wolfe[0] if args.wolfe is not None else "",
         wolfe_c1=args.wolfe[1] if args.wolfe is not None else "",
         linesearch_epoch=args.linesearch_epoch,

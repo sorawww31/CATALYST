@@ -29,6 +29,7 @@ def options():
             "ImageNet1k",
             "MNIST",
             "TinyImageNet",
+            "SVHN",
         ],
     )
     parser.add_argument(
@@ -285,7 +286,6 @@ def options():
     parser.add_argument(
         "--linesearch_epoch",
         type=int,
-        nargs=1,
         default=30,
         help="Epoch of starting Line Search with wolfe condition",
     )
@@ -293,7 +293,6 @@ def options():
     parser.add_argument(
         "--omega",
         type=float,
-        nargs=1,
         default=0.75,
         help="Omega for Line Search",
     )
@@ -301,7 +300,6 @@ def options():
     parser.add_argument(
         "--bound_lr_rate",
         type=float,
-        nargs=1,
         default=None,
         help="Bound for lr rate in Line Search",
     )

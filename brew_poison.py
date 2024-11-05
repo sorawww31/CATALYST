@@ -40,10 +40,9 @@ if __name__ == "__main__":
 
     if not args.pretrained and args.retrain_from_init:
         stats_rerun = model.retrain(data, poison_delta)
-
     else:
         stats_rerun = None  # we dont know the initial seed for a pretrained model so retraining makes no sense
-    retrain_time = time.time()
+
     if args.vnet is not None:  # Validate the transfer model given by args.vnet
         train_net = args.net
         args.net = args.vnet
@@ -83,10 +82,6 @@ if __name__ == "__main__":
         extra_stats=timestamps,
     )
 
-    # Export
-    if args.save is not None:
-        data.export_poison(poison_delta, path=args.poison_path, mode=args.save)
-
     print(datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p"))
     print("---------------------------------------------------")
     print(
@@ -96,9 +91,6 @@ if __name__ == "__main__":
         f"--------------------------- brew time: {str(datetime.timedelta(seconds=brew_time - train_time))}"
     )
     print(
-        f"--------------------------- retrain time: {str(datetime.timedelta(seconds=retrain_time - brew_time))}"
-    )
-    print(
-        f"--------------------------- test time: {str(datetime.timedelta(seconds=test_time - retrain_time))}"
+        f"--------------------------- test time: {str(datetime.timedelta(seconds=test_time - brew_time))}"
     )
     print("-------------Job finished.-------------------------")

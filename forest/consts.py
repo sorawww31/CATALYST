@@ -1,4 +1,7 @@
 """Setup constants, ymmv."""
+NORMALIZE =True
+
+"""Setup constants, ymmv."""
 
 PIN_MEMORY = True
 NON_BLOCKING = True
@@ -20,3 +23,7 @@ imagenet_mean = [0.485, 0.456, 0.406]
 imagenet_std = [0.229, 0.224, 0.225]
 tiny_imagenet_mean = [0.4789886474609375, 0.4457630515098572, 0.3944724500179291]
 tiny_imagenet_std = [0.27698642015457153, 0.2690644860267639, 0.2820819020271301]
+
+#add svhn
+svhn_mean = [0.485, 0.456, 0.406]
+svhn_std = [0.229, 0.224, 0.225]
