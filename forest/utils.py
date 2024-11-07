@@ -180,8 +180,6 @@ def record_results(
         # Add --------
         wolfe_c2=args.wolfe[0] if args.wolfe is not None else "",
         wolfe_c1=args.wolfe[1] if args.wolfe is not None else "",
-        linesearch_epoch=args.linesearch_epoch,
-        omega=args.omega,
         target_mloss_reinit=_maybe(stats_results, "target_losses", mean=True),
         target_macc_reinit=_maybe(stats_results, "target_accs", mean=True),
         target_mloss_rerun=_maybe(stats_rerun, "target_losses", mean=True),
@@ -207,6 +205,8 @@ def record_results(
         modelkey=modelkey,
         net=",".join(args.net),
         vnet=",".join(args.vnet) if args.vnet is not None else "",
+        linesearch_epoch=args.linesearch_epoch,
+        omega=args.omega,
     )
 
 

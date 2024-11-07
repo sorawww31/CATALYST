@@ -303,4 +303,9 @@ def options():
         default=None,
         help="Bound for lr rate in Line Search",
     )
+    parser.add_argument(
+        "--sharpsigma", default=0.05, type=float, help="variance of sharpness"
+    )
+
+    parser.add_argument("--savename", default="p5", type=str, help="data save name")
     return parser

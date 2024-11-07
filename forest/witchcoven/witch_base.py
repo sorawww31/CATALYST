@@ -106,6 +106,7 @@ class _Witch:
         )
 
         # Precompute target gradients
+        print(f"Target criterion is {self.args.target_criterion}")
         if self.args.target_criterion in ["cw", "carlini-wagner"]:
             self.target_grad, self.target_gnorm = victim.gradient(
                 self.targets, self.intended_classes, cw_loss
