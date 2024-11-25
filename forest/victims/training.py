@@ -255,7 +255,7 @@ def run_step(
         if (
             (epoch > kettle.args.linesearch_epoch)
             and kettle.args.wolfe
-            and poison_delta is not None
+            # and poison_delta is not None
         ):
             alpha = renewal_wolfecondition_stepsize(
                 kettle,

@@ -206,7 +206,13 @@ def record_results(
         net=",".join(args.net),
         vnet=",".join(args.vnet) if args.vnet is not None else "",
         linesearch_epoch=args.linesearch_epoch,
-        omega=args.omega,
+        sharpsigma=args.sharpsigma,
+        savename=args.savename,
+        mixing_method=args.mixing_method,
+        mixing_disable_correction=args.mixing_disable_correction,
+        mixing_strength=args.mixing_strength,
+        disable_adaptive_attack=args.disable_adaptive_attack,
+        defend_features_only=args.defend_features_only,
     )
 
 

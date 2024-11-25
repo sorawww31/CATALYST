@@ -124,12 +124,11 @@ def options():
         default=False,
         action="store_true",
         help="Do not augment poison batch during optimization",
-        # help="Augment poison batch during optimization",
     )
     parser.add_argument(
         "--data_aug",
-        default=True,
-        action="store_true",
+        type=str,
+        default="default",
         help="Mode of diff. data augmentation.",
     )
 
@@ -259,6 +258,7 @@ def options():
 
     # Debugging:
     parser.add_argument("--dryrun", action="store_true")
+
     parser.add_argument(
         "--save",
         default=None,
@@ -273,6 +273,37 @@ def options():
         help="Distributed rank. This is an INTERNAL ARGUMENT! "
         "Only the launch utility should set this argument!",
     )
+
+    # Mixing defense
+    parser.add_argument(
+        "--mixing_method",
+        default=None,
+        type=str,
+        help="Which mixing data augmentation to use.",
+    )
+    parser.add_argument(
+        "--mixing_disable_correction",
+        action="store_false",
+        help="Disable correcting the loss term appropriately after data mixing.",
+    )
+    parser.add_argument(
+        "--mixing_strength", default=None, type=float, help="How strong is the mixing."
+    )
+    parser.add_argument(
+        "--disable_adaptive_attack",
+        action="store_false",
+        help="Do not use a defended model as input for poisoning. [Defend only in poison validation]",
+    )
+    parser.add_argument(
+        "--defend_features_only",
+        action="store_true",
+        help="Only defend during the initial pretraining before poisoning. [Defend only in pretraining]",
+    )
+    parser.add_argument(
+        "--sharpsigma", default=0.05, type=float, help="variance of sharpness"
+    )
+
+    parser.add_argument("--savename", default="p5", type=str, help="data save name")
 
     # wolfe
     parser.add_argument(
@@ -289,23 +320,4 @@ def options():
         default=30,
         help="Epoch of starting Line Search with wolfe condition",
     )
-
-    parser.add_argument(
-        "--omega",
-        type=float,
-        default=0.75,
-        help="Omega for Line Search",
-    )
-
-    parser.add_argument(
-        "--bound_lr_rate",
-        type=float,
-        default=None,
-        help="Bound for lr rate in Line Search",
-    )
-    parser.add_argument(
-        "--sharpsigma", default=0.05, type=float, help="variance of sharpness"
-    )
-
-    parser.add_argument("--savename", default="p5", type=str, help="data save name")
     return parser

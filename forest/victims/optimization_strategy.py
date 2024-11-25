@@ -9,6 +9,7 @@ BRITTLE_NETS = [
     "alexnet",
 ]  # handled with lower learning rate
 
+
 def training_strategy(model_name, args):
     """Parse training strategy."""
     optim_tipe = args.optimization
@@ -34,6 +35,16 @@ def training_strategy(model_name, args):
         defs = ConservativeStrategy_batch256(model_name, args)
     elif optim_tipe == "conservative_on_AdamW":
         defs = ConservativeStrategy_on_ADAM(model_name, args)
+
+    # Modify data mixing arguments:
+    if args.mixing_method is not None:
+        defs.mixing_method["type"] = args.mixing_method
+
+    defs.mixing_method["correction"] = args.mixing_disable_correction
+
+    if args.mixing_strength is not None:
+        defs.mixing_method["strength"] = args.mixing_strength
+
     return defs
 
 
@@ -50,6 +61,7 @@ class Strategy:
     augmentations: bool
     privacy: dict
     validate: int
+    mixing_method: dict  # mody-aug
 
     def __init__(self, model_name, args):
         """Defaulted parameters. Apply overwrites from args."""
@@ -78,7 +90,8 @@ class ConservativeStrategy(Strategy):
         self.augmentations = True
         self.privacy = dict(clip=None, noise=None)
         self.adversarial_steps = 0
-        self.validate = 10
+        self.validate = 5
+        self.mixing_method = dict(type="", strength=0.0, correction=False)
 
         super().__init__(model_name, args)
 
@@ -99,6 +112,7 @@ class MemoryStrategy(Strategy):
         self.privacy = dict(clip=None, noise=None)
         self.adversarial_steps = 0
         self.validate = 10
+        self.mixing_method = dict(type="", strength=0.0, correction=False)
 
         super().__init__(model_name, args)
 
@@ -127,6 +141,7 @@ class PrivacyStrategy(Strategy):
         self.privacy = dict(clip=clip, noise=noise)
         self.adversarial_steps = 0
         self.validate = 10
+        self.mixing_method = dict(type="", strength=0.0, correction=False)
         super().__init__(model_name, args)
 
 
@@ -149,6 +164,7 @@ class BasicStrategy(Strategy):
         self.privacy = dict(clip=None, noise=None)
         self.adversarial_steps = 0
         self.validate = 10
+        self.mixing_method = dict(type="", strength=0.0, correction=False)
         super().__init__(model_name, args)
 
 
@@ -168,6 +184,7 @@ class AdversarialStrategy(Strategy):
         self.privacy = dict(clip=None, noise=None)
         self.adversarial_steps = 4
         self.validate = 10
+        self.mixing_method = dict(type="", strength=0.0, correction=False)
         super().__init__(model_name, args)
 
 
@@ -195,6 +212,7 @@ class FastStrategy(Strategy):
         self.privacy = dict(clip=None, noise=None)
         self.adversarial_steps = 0
         self.validate = 20
+        self.mixing_method = dict(type="", strength=0.0, correction=False)
         super().__init__(model_name, args)
 
 
@@ -214,7 +232,7 @@ class ConservativeStrategy_batch256(Strategy):
         self.privacy = dict(clip=None, noise=None)
         self.adversarial_steps = 0
         self.validate = 10
-
+        self.mixing_method = dict(type="", strength=0.0, correction=False)
         super().__init__(model_name, args)
 
 
@@ -233,5 +251,5 @@ class ConservativeStrategy_on_ADAM(Strategy):
         self.privacy = dict(clip=None, noise=None)
         self.adversarial_steps = 0
         self.validate = 10
-
+        self.mixing_method = dict(type="", strength=0.0, correction=False)
         super().__init__(model_name, args)
