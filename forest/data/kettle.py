@@ -317,7 +317,7 @@ class Kettle:
             elif self.augmentations == "affine-trafo-nn-no-flip":
                 params["fliplr"] = False
                 self.augment = RandomTransformFixed(**params, mode="nearest")
-            elif not self.augmentations:
+            elif not self.augmentations or self.augmentations == "none":
                 print("Data augmentations are disabled.")
                 self.augment = RandomTransform(**params, mode="bilinear")
             else:
@@ -344,6 +344,7 @@ class Kettle:
 
                 if "maxup" in self.mixing_method["type"]:
                     self.mixer = Maxup(self.mixer, ntrials=4)
+                print(f"Using mixing data augmentation {self.mixing_method['type']}.")
 
         return trainset, validset
 

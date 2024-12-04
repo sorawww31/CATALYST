@@ -87,7 +87,9 @@ class _VictimBase:
         if kettle.args.noaugment:
             print(f"Kettle is not Augmentated ")
         else:
-            print(f"Kettle is Augmentated with {kettle.args.data_aug}.")
+            print(
+                f"Kettle is Augmentated with {kettle.args.data_aug} and {kettle.args.mixing_method}."
+            )
 
         return self._iterate(kettle, poison_delta=None, max_epoch=max_epoch)
 
@@ -106,7 +108,9 @@ class _VictimBase:
             if kettle.args.noaugment:
                 print(f"Kettle is not Augmentated ")
             else:
-                print(f"Kettle is Augmentated with {kettle.args.data_aug}.")
+                print(
+                    f"Kettle is Augmentated with {kettle.args.data_aug} and {kettle.args.mixing_method}."
+                )
             run_stats.append(self._iterate(kettle, poison_delta=poison_delta))
 
         return average_dicts(run_stats)

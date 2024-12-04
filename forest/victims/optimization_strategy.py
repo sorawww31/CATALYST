@@ -87,7 +87,7 @@ class ConservativeStrategy(Strategy):
         self.optimizer = "SGD"
         self.scheduler = "linear"
         self.weight_decay = 5e-4
-        self.augmentations = True
+        self.augmentations = "default"
         self.privacy = dict(clip=None, noise=None)
         self.adversarial_steps = 0
         self.validate = 5

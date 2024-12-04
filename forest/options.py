@@ -129,6 +129,20 @@ def options():
         "--data_aug",
         type=str,
         default="default",
+        choices=[
+            "default",
+            "default-no-align",
+            "default-nn" "default-nn-no-align",
+            "grid-shift",
+            "LR",
+            "affine-trafo",
+            "affine-trafo-nn",
+            "affine-trafo-no-align",
+            "affine-trafo-nn-no-align",
+            "affine-trafo-no-flip",
+            "affine-trafo-nn-no-flip",
+            "none",
+        ],
         help="Mode of diff. data augmentation.",
     )
 
@@ -279,6 +293,7 @@ def options():
         "--mixing_method",
         default=None,
         type=str,
+        choices=["mixup", "cutmix", "cutout", "maxup", "none"],
         help="Which mixing data augmentation to use.",
     )
     parser.add_argument(
@@ -287,7 +302,7 @@ def options():
         help="Disable correcting the loss term appropriately after data mixing.",
     )
     parser.add_argument(
-        "--mixing_strength", default=None, type=float, help="How strong is the mixing."
+        "--mixing_strength", default=1.0, type=float, help="How strong is the mixing."
     )
     parser.add_argument(
         "--disable_adaptive_attack",

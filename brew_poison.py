@@ -23,7 +23,11 @@ if __name__ == "__main__":
 
     model = forest.Victim(args, setup=setup)
     data = forest.Kettle(
-        args, model.defs.batch_size, model.defs.augmentations, setup=setup
+        args,
+        model.defs.batch_size,
+        model.defs.augmentations,
+        mixing_method=model.defs.mixing_method,
+        setup=setup,
     )
     witch = forest.Witch(args, setup=setup)
 
