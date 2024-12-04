@@ -10,7 +10,34 @@ from ..utils import set_random_seed
 
 torch.backends.cudnn.benchmark = BENCHMARK
 
+import copy
+
 from .victim_base import _VictimBase
+
+
+def list_plus(list1, list2):  # two list must have same structure
+    list_total = copy.deepcopy(list1)
+    for i in range(len(list_total)):
+        list_total[i] += list2[i]
+    return list_total
+
+
+def list_multiply(list1, a):
+    list_total = copy.deepcopy(list1)
+    for i in range(len(list_total)):
+        list_total[i] *= a
+    return list_total
+
+
+def add_gaussian(model, sigma):
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    with torch.no_grad():
+        for _, param in model.named_parameters():
+            param_size = param.size()
+            mean_param = torch.zeros(param_size, device=device)
+            std_param = sigma * torch.ones(param_size, device=device)
+            gaussian_noise = torch.normal(mean_param, std_param)
+            param.add_(gaussian_noise)
 
 
 class _VictimSingle(_VictimBase):
@@ -136,3 +163,64 @@ class _VictimSingle(_VictimBase):
         Function has arguments: model, criterion
         """
         return function(self.model, self.criterion, self.optimizer, *args)
+
+    def sharp_grad(self, criterion, images, labels, sigma):
+        """compute gradient of sharpness on clean training, return a tuple, return -1*grad"""
+        import copy
+
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        inputs, targets = images.to(device), labels.to(device)
+        net_clone = copy.deepcopy(self.model)
+        add_gaussian(net_clone, sigma)
+        output_p = net_clone(inputs)
+        loss_s = criterion(output_p, targets)
+        loss_grad = torch.autograd.grad(
+            loss_s, net_clone.parameters(), only_inputs=True
+        )
+        loss_grad_list = list(loss_grad)
+        for _ in range(19):
+            net_clone = copy.deepcopy(self.model)
+            add_gaussian(net_clone, sigma)
+            output_p = net_clone(inputs)
+            loss_s = criterion(output_p, targets)
+            grad = torch.autograd.grad(loss_s, net_clone.parameters(), only_inputs=True)
+            loss_grad_list = list_plus(loss_grad_list, list(grad))
+        loss_grad_list = list_multiply(loss_grad_list, 1 / 20)
+        total_grad = tuple(loss_grad_list)  # transform to tuple
+        grad_norm = 0
+        for grad in total_grad:
+            grad_norm += grad.detach().pow(2).sum()
+        grad_norm = grad_norm.sqrt()
+        return total_grad, grad_norm
+
+    def worst_sharp_grad(self, criterion, images, labels, sigma):
+        """grad of worst sharpness"""
+        import copy
+
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        inputs, targets = images.to(device), labels.to(device)
+        output = self.model(inputs)
+        loss = criterion(output, targets)
+        grad_ = torch.autograd.grad(loss, self.model.parameters(), only_inputs=True)
+        grad_n = 0
+        for grad in grad_:
+            grad_n += grad.detach().pow(2).sum()
+        grad_n = grad_n.sqrt()
+
+        scale = sigma / (grad_n + 1e-12)
+        net_clone = copy.deepcopy(self.model)
+        for name, p in net_clone.named_parameters():
+            if p.grad is None:
+                continue
+            e_w = (1.0) * p.grad * scale.to(p)
+            p.add_(e_w)
+        output_p = net_clone(inputs)
+        loss_s = criterion(output_p, targets)
+        gradients = torch.autograd.grad(
+            loss_s, net_clone.parameters(), only_inputs=True
+        )
+        grad_norm = 0
+        for grad in gradients:
+            grad_norm += grad.detach().pow(2).sum()
+        grad_norm = grad_norm.sqrt()
+        return gradients, grad_norm

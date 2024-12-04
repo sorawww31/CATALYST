@@ -1,6 +1,7 @@
 """Super-classes of common datasets to extract id information per image."""
 import torch
 import torchvision
+import numpy as np#add svhn
 
 from ..consts import *   # import all mean/std constants
 
@@ -44,6 +45,15 @@ def construct_datasets(dataset, data_path, normalize=True):
             data_std = (torch.std(cc, dim=0).item(),)
         else:
             data_mean, data_std = mnist_mean, mnist_std
+    #add svhn
+    elif dataset == 'SVHN':
+        trainset = SVHN(root=data_path, split='train', download=True, transform=transforms.ToTensor())
+        if svhn_mean is None:
+            cc = torch.cat([trainset[i][0].reshape(3, -1) for i in range(len(trainset))], dim=1)
+            data_mean = torch.mean(cc, dim=1).tolist()
+            data_std = torch.std(cc, dim=1).tolist()
+        else:
+            data_mean, data_std = svhn_mean, svhn_std
     elif dataset == 'ImageNet':
         trainset = ImageNet(root=data_path, split='train', download=False, transform=transforms.ToTensor())
         if imagenet_mean is None:
@@ -102,6 +112,9 @@ def construct_datasets(dataset, data_path, normalize=True):
         validset = CIFAR100(root=data_path, train=False, download=True, transform=transform_valid)
     elif dataset == 'CIFAR10':
         validset = CIFAR10(root=data_path, train=False, download=True, transform=transform_valid)
+    #add svhn
+    elif dataset == 'SVHN':
+        validset = SVHN(root=data_path, split='test', download=True, transform=transform_valid)
     elif dataset == 'MNIST':
         validset = MNIST(root=data_path, train=False, download=True, transform=transform_valid)
     elif dataset == 'TinyImageNet':
@@ -232,6 +245,50 @@ class CIFAR100(torchvision.datasets.CIFAR100):
 
         return target, index
 
+#add svhn dataset
+class SVHN(torchvision.datasets.SVHN):
+    """Super-class SVHN to return image ids with images."""
+
+    def __getitem__(self, index):
+        """Getitem from https://pytorch.org/docs/stable/_modules/torchvision/datasets/cifar.html#CIFAR10.
+
+        Args:
+            index (int): Index
+
+        Returns:
+            tuple: (image, target, idx) where target is index of the target class.
+
+        """
+        img, target = self.data[index], self.labels[index]
+
+        # doing this so that it is consistent with all other datasets
+        # to return a PIL Image
+        img = Image.fromarray(np.transpose(img, (1, 2, 0)))
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return img, target, index
+
+    def get_target(self, index):
+        """Return only the target and its id.
+
+        Args:
+            index (int): Index
+
+        Returns:
+            tuple: (target, idx) where target is class_index of the target class.
+
+        """
+        target = self.labels[index]
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return target, index
 
 class MNIST(torchvision.datasets.MNIST):
     """Super-class MNIST to return image ids with images."""

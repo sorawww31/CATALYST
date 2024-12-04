@@ -108,8 +108,12 @@ def save_to_table(out_dir, name, dryrun, **kwargs):
 def record_results(
     kettle, brewed_loss, results, args, defs, modelkey, extra_stats=dict()
 ):
-    """Save output to a csv table."""
-    class_names = kettle.trainset.classes
+
+    # add svhn
+    if args.dataset == "SVHN":
+        class_names = [str(i) for i in range(10)]
+    else:
+        class_names = kettle.trainset.classes
     stats_clean, stats_rerun, stats_results = results
 
     def _maybe(stats, param, mean=False):
@@ -173,10 +177,9 @@ def record_results(
         step_decay=args.scheduling,
         ablation=args.ablation,
         benchmark_idx=args.benchmark_idx,
+        # Add --------
         wolfe_c2=args.wolfe[0] if args.wolfe is not None else "",
         wolfe_c1=args.wolfe[1] if args.wolfe is not None else "",
-        linesearch_epoch=args.linesearch_epoch,
-        omega=args.omega,
         target_mloss_reinit=_maybe(stats_results, "target_losses", mean=True),
         target_macc_reinit=_maybe(stats_results, "target_accs", mean=True),
         target_mloss_rerun=_maybe(stats_rerun, "target_losses", mean=True),
@@ -202,6 +205,14 @@ def record_results(
         modelkey=modelkey,
         net=",".join(args.net),
         vnet=",".join(args.vnet) if args.vnet is not None else "",
+        linesearch_epoch=args.linesearch_epoch,
+        sharpsigma=args.sharpsigma,
+        savename=args.savename,
+        mixing_method=args.mixing_method,
+        mixing_disable_correction=args.mixing_disable_correction,
+        mixing_strength=args.mixing_strength,
+        disable_adaptive_attack=args.disable_adaptive_attack,
+        defend_features_only=args.defend_features_only,
     )
 
 

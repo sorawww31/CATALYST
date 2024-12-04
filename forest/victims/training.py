@@ -125,10 +125,6 @@ def renewal_wolfecondition_stepsize(
 
         # 学習率を縮小して再試行
         alpha *= omega
-        if args.bound_lr_rate is not None:
-            if optimizer_lr * args.bound_lr_rate > alpha:
-                print("学習率が小さすぎるのを防ぎます。")
-                return optimizer_lr
     if not wolfe_satisfied:
         print(
             "Wolfe条件を満たす学習率が見つかりませんでした。最小のalphaを使用します。"
@@ -206,7 +202,7 @@ def run_step(
 
         # Add data ation
         if (
-            defs.augmentations is True
+            defs.augmentations and kettle.args.data_aug != "none"
         ):  # defs.augmentations is actually a string, but it is False if --noaugment
             inputs = kettle.augment(inputs)
 
@@ -223,9 +219,20 @@ def run_step(
                 tau=kettle.args.tau,
             )
 
-        # Get loss
-        outputs = model(inputs)
-        loss = loss_fn(model, outputs, labels)
+        if defs.mixing_method["type"] != "":
+            inputs, extra_labels, mixing_lambda = kettle.mixer.forward(
+                inputs, labels, epoch
+            )
+            outputs = model(inputs)
+            loss, _ = kettle.mixer.corrected_loss(
+                model, outputs, extra_labels, mixing_lambda, loss_fn
+            )
+        else:
+            # Get loss
+            outputs = model(inputs)
+            # Use corrected loss if data mixing is applied
+            loss = loss_fn(model, outputs, labels)
+
         if DEBUG_TRAINING:
             forward_timer_end.record()
             backward_timer_start.record()
@@ -255,7 +262,7 @@ def run_step(
         if (
             (epoch > kettle.args.linesearch_epoch)
             and kettle.args.wolfe
-            and poison_delta is not None
+            # and poison_delta is not None
         ):
             alpha = renewal_wolfecondition_stepsize(
                 kettle,

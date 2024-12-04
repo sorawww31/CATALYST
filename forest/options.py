@@ -29,6 +29,7 @@ def options():
             "ImageNet1k",
             "MNIST",
             "TinyImageNet",
+            "SVHN",
         ],
     )
     parser.add_argument(
@@ -123,12 +124,25 @@ def options():
         default=False,
         action="store_true",
         help="Do not augment poison batch during optimization",
-        # help="Augment poison batch during optimization",
     )
     parser.add_argument(
         "--data_aug",
-        default=True,
-        action="store_true",
+        type=str,
+        default="default",
+        choices=[
+            "default",
+            "default-no-align",
+            "default-nn" "default-nn-no-align",
+            "grid-shift",
+            "LR",
+            "affine-trafo",
+            "affine-trafo-nn",
+            "affine-trafo-no-align",
+            "affine-trafo-nn-no-align",
+            "affine-trafo-no-flip",
+            "affine-trafo-nn-no-flip",
+            "none",
+        ],
         help="Mode of diff. data augmentation.",
     )
 
@@ -258,6 +272,7 @@ def options():
 
     # Debugging:
     parser.add_argument("--dryrun", action="store_true")
+
     parser.add_argument(
         "--save",
         default=None,
@@ -273,6 +288,38 @@ def options():
         "Only the launch utility should set this argument!",
     )
 
+    # Mixing defense
+    parser.add_argument(
+        "--mixing_method",
+        default=None,
+        type=str,
+        choices=["mixup", "cutmix", "cutout", "maxup", "none"],
+        help="Which mixing data augmentation to use.",
+    )
+    parser.add_argument(
+        "--mixing_disable_correction",
+        action="store_false",
+        help="Disable correcting the loss term appropriately after data mixing.",
+    )
+    parser.add_argument(
+        "--mixing_strength", default=1.0, type=float, help="How strong is the mixing."
+    )
+    parser.add_argument(
+        "--disable_adaptive_attack",
+        action="store_false",
+        help="Do not use a defended model as input for poisoning. [Defend only in poison validation]",
+    )
+    parser.add_argument(
+        "--defend_features_only",
+        action="store_true",
+        help="Only defend during the initial pretraining before poisoning. [Defend only in pretraining]",
+    )
+    parser.add_argument(
+        "--sharpsigma", default=0.05, type=float, help="variance of sharpness"
+    )
+
+    parser.add_argument("--savename", default="p5", type=str, help="data save name")
+
     # wolfe
     parser.add_argument(
         "--wolfe",
@@ -285,24 +332,7 @@ def options():
     parser.add_argument(
         "--linesearch_epoch",
         type=int,
-        nargs=1,
         default=30,
         help="Epoch of starting Line Search with wolfe condition",
-    )
-
-    parser.add_argument(
-        "--omega",
-        type=float,
-        nargs=1,
-        default=0.75,
-        help="Omega for Line Search",
-    )
-
-    parser.add_argument(
-        "--bound_lr_rate",
-        type=float,
-        nargs=1,
-        default=None,
-        help="Bound for lr rate in Line Search",
     )
     return parser
