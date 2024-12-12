@@ -88,7 +88,7 @@ def options():
     parser.add_argument(
         "--data_path",
         # 最後には変えようね
-        default="/hpc_share/ee217092/poisoning-gradient-matching/datasets",
+        default="/hpc_share/ee217092/CATALYST/datasets",
         type=str,
     )
     ###########################################################################
