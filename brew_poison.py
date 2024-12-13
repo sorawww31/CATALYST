@@ -76,6 +76,12 @@ if __name__ == "__main__":
     )
     # Save run to table
     results = (stats_clean, stats_rerun, stats_results)
+    if args.save_stats_to_pickle:
+        import pickle
+
+        with open("stats_rerun.pkl", "wb") as f:
+            pickle.dump(results, f)
+
     forest.utils.record_results(
         data,
         witch.stat_optimal_loss,

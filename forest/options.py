@@ -335,4 +335,10 @@ def options():
         default=30,
         help="Epoch of starting Line Search with wolfe condition",
     )
+    parser.add_argument(
+        "--save_stats_to_pickle",
+        action="store_true",
+        default=False,
+        help="Save stats_rerun to pickle file",
+    )
     return parser

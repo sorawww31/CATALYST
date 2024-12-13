@@ -19,6 +19,7 @@ def print_and_save_stats(
     """Print info into console and into the stats object."""
     stats["train_losses"].append(train_loss)
     stats["train_accs"].append(train_acc)
+    stats["learning_rates"].append(current_lr)
 
     if valid_acc is not None:
         stats["valid_accs"].append(valid_acc)
@@ -76,3 +77,18 @@ def pgd_step(inputs, labels, model, loss_fn, dm, ds, eps=16, tau=0.01):
             torch.min(outputs, (1 + dm) / ds - inputs), -dm / ds - inputs
         )
     return outputs
+
+
+def initialize_metrics():
+    """Initialize metrics for recording during training."""
+    return {"learning_rates": [], "training_losses": [], "adversarial_losses": []}
+
+
+def record_metrics(metrics, optimizer, loss, adversarial_loss):
+    """Record current learning rate, training loss, and adversarial loss."""
+    current_lr = optimizer.param_groups[0]["lr"]
+    metrics["learning_rates"].append(current_lr)
+    metrics["training_losses"].append(loss.item())
+    metrics["adversarial_losses"].append(
+        adversarial_loss.item() if adversarial_loss is not None else 0
+    )
