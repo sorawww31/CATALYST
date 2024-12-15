@@ -341,4 +341,10 @@ def options():
         default=False,
         help="Save stats_rerun to pickle file",
     )
+    parser.add_argument(
+        "--wandb",
+        action="store_true",
+        default=False,
+        help="Use wandb for logging",
+    )
     return parser

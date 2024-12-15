@@ -1,11 +1,13 @@
 """General interface script to launch poisoning jobs."""
 
 import datetime
+import os
 import time
 
 import torch
 
 import forest
+import wandb
 
 torch.backends.cudnn.benchmark = forest.consts.BENCHMARK
 torch.multiprocessing.set_sharing_strategy(forest.consts.SHARING_STRATEGY)
@@ -41,6 +43,11 @@ if __name__ == "__main__":
 
     poison_delta = witch.brew(model, data)
     brew_time = time.time()
+
+    if args.wandb:
+        os.environ["WANDB_API_KEY"] = "b89e9995f493fd65200bf57ec07b503531990699"
+        wandb.init(project=args.name)
+        wandb.config.conservative = args.optimization
 
     if not args.pretrained and args.retrain_from_init:
         stats_rerun = model.retrain(data, poison_delta)
@@ -92,6 +99,8 @@ if __name__ == "__main__":
         extra_stats=timestamps,
     )
 
+    if args.wandb:
+        wandb.finish()
     print(datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p"))
     print("---------------------------------------------------")
     print(

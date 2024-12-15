@@ -5,6 +5,8 @@ import datetime
 
 import torch
 
+import wandb
+
 from ..consts import BENCHMARK, DEBUG_TRAINING, NON_BLOCKING
 from ..utils import cw_loss
 from .utils import pgd_step, print_and_save_stats
@@ -168,8 +170,10 @@ def run_step(
     else:
         loader = kettle.trainloader
     current_lr = optimizer.param_groups[0]["lr"]
+    step = 0
     for batch, (inputs, labels, ids) in enumerate(loader):
         # Prep Mini-Batch
+
         model.train()
         optimizer.zero_grad()
 
@@ -298,8 +302,31 @@ def run_step(
 
         if defs.scheduler == "cyclic":
             scheduler.step()
+        if kettle.args.wandb:
+            target_images = torch.stack([data[0] for data in kettle.targetset]).to(
+                **kettle.setup
+            )
+
+            intended_labels = torch.tensor(kettle.poison_setup["intended_class"]).to(
+                device=kettle.setup["device"], dtype=torch.long
+            )
+            with torch.no_grad():
+                outputs = model(target_images)
+                target = criterion(outputs, intended_labels)
+                train = loss.item()
+            wandb.log(
+                {
+                    "train_loss": train,
+                    "target_loss": target,
+                    "lr": current_lr,
+                    "step": step,
+                }
+            )
+        step += 1
+
         if kettle.args.dryrun:
             break
+
     if defs.scheduler == "linear":
         scheduler.step()
 

@@ -18,6 +18,8 @@ result/
 
 *.pkl
 
+wandb/
+
 #pycharm
 .idea
 
