@@ -322,7 +322,7 @@ def run_step(
                 fx_adv, copy_model.parameters(), create_graph=True
             )
             nabla_fx_adv = torch.cat([f.view(-1) for f in nabla_fx_adv])
-            fx = criterion(copy_model(inputs), outputs)
+            fx = criterion(copy_model(inputs), labels)
             nabla_fx = torch.autograd.grad(
                 fx, copy_model.parameters(), create_graph=True
             )
