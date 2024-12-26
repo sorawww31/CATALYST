@@ -308,6 +308,7 @@ def run_step(
 
         if kettle.args.wandb:
             copy_model = copy.deepcopy(model)
+            copy_model.eval()
             intended_class = kettle.poison_setup["intended_class"]
             intended_labels = torch.tensor(intended_class).to(
                 device=kettle.setup["device"], dtype=torch.long
