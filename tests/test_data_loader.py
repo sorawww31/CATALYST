@@ -2,44 +2,49 @@ import torch
 import torchvision
 from torchvision import transforms
 
-print('Start')
-normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])
-trans = transforms.Compose([
-    transforms.CenterCrop(240),
-    transforms.ToTensor(),
-    normalize,
-])
-imagenet_data = torchvision.datasets.ImageFolder('/gpfs/scratch/tomg/data/ILSVRC2012/train',
-                                                 transform=trans)
-print('Accessing dataset')
+print("Start")
+normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+trans = transforms.Compose(
+    [
+        transforms.CenterCrop(240),
+        transforms.ToTensor(),
+        normalize,
+    ]
+)
+# imagenet_data = torchvision.datasets.ImageFolder('/gpfs/scratch/tomg/data/ILSVRC2012/train',transform=trans)
+
+imagenet_data = torchvision.datasets.ImageFolder(
+    "/hpc_share/ee217092/CATALYST/datasets/imagenet_data/ILSVRC/Annotations/CLS-LOC/train",
+    transform=trans,
+)
+
+print("Accessing dataset")
 a = imagenet_data[0]
-print('   A shape = ', a[0].shape)
+print("   A shape = ", a[0].shape)
 
-print('Making loader')
+print("Making loader")
 batch_size = 128
-data_loader = torch.utils.data.DataLoader(imagenet_data,
-                                          batch_size=batch_size,
-                                          shuffle=True,
-                                          num_workers=200)
+data_loader = torch.utils.data.DataLoader(
+    imagenet_data, batch_size=batch_size, shuffle=True, num_workers=200
+)
 num_batches = len(data_loader)
-print(f'Loader has {num_batches} batches')
+print(f"Loader has {num_batches} batches")
 
-print('Accessing loader')
+print("Accessing loader")
 batch = next(iter(data_loader))
 batch_shape = batch[0].shape
-print('   Batch shape = ', batch_shape)
-print('   Batch type = ', batch[0].dtype)
+print("   Batch shape = ", batch_shape)
+print("   Batch type = ", batch[0].dtype)
 
 
-print('Loading data')
+print("Loading data")
 for i, (x, y) in enumerate(data_loader):
     if i % 10 == 0:
-        print(f'\n{i}/{num_batches} = {100.0*i/num_batches}% | ', end='')
+        print(f"\n{i}/{num_batches} = {100.0*i/num_batches}% | ", end="")
     else:
-        print('*', end='')
+        print("*", end="")
 
-print('Done')
+print("Done")
 
 # print('Allocating memory for whole dataset')
 # dataset_shape = [batch_shape[0]*num_batches] + list(batch_shape[1:])

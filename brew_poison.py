@@ -3,6 +3,7 @@
 import datetime
 import os
 import time
+from datetime import date
 
 import torch
 
@@ -20,6 +21,11 @@ if args.deterministic:
 
 
 if __name__ == "__main__":
+    if args.wandb:
+        os.environ["WANDB_API_KEY"] = "b89e9995f493fd65200bf57ec07b503531990699"
+        print("Logging to wandb...")
+        wandb.init(project=args.name, name=f"{args.poisonkey}_{date.today()}")
+        wandb.config.conservative = f"{args.name}"
 
     setup = forest.utils.system_startup(args)
 
@@ -43,11 +49,6 @@ if __name__ == "__main__":
 
     poison_delta = witch.brew(model, data)
     brew_time = time.time()
-
-    if args.wandb:
-        os.environ["WANDB_API_KEY"] = "b89e9995f493fd65200bf57ec07b503531990699"
-        wandb.init(project=args.name)
-        wandb.config.conservative = args.optimization
 
     if not args.pretrained and args.retrain_from_init:
         stats_rerun = model.retrain(data, poison_delta)

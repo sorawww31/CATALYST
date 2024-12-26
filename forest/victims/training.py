@@ -4,6 +4,7 @@ import copy
 import datetime
 
 import torch
+import torch.nn.functional as F
 
 import wandb
 
@@ -150,6 +151,8 @@ def run_step(
 ):
 
     epoch_loss, total_preds, correct_preds = 0, 0, 0  # <- 追加
+    cos_sim = None
+
     if DEBUG_TRAINING:
         data_timer_start = torch.cuda.Event(enable_timing=True)
         data_timer_end = torch.cuda.Event(enable_timing=True)
@@ -302,28 +305,38 @@ def run_step(
 
         if defs.scheduler == "cyclic":
             scheduler.step()
+
         if kettle.args.wandb:
+            copy_model = copy.deepcopy(model)
+            intended_class = kettle.poison_setup["intended_class"]
+            intended_labels = torch.tensor(intended_class).to(
+                device=kettle.setup["device"], dtype=torch.long
+            )
             target_images = torch.stack([data[0] for data in kettle.targetset]).to(
                 **kettle.setup
             )
 
-            intended_labels = torch.tensor(kettle.poison_setup["intended_class"]).to(
-                device=kettle.setup["device"], dtype=torch.long
+            fx_adv = criterion(copy_model(target_images), intended_labels)
+
+            nabla_fx_adv = torch.autograd.grad(
+                fx_adv, copy_model.parameters(), create_graph=True
             )
-            with torch.no_grad():
-                outputs = model(target_images)
-                target = criterion(outputs, intended_labels)
-                train = loss.item()
+            nabla_fx_adv = torch.cat([f.view(-1) for f in nabla_fx_adv])
+            fx = criterion(copy_model(inputs), outputs)
+            nabla_fx = torch.autograd.grad(
+                fx, copy_model.parameters(), create_graph=True
+            )
+            nabla_fx = torch.cat([f.view(-1) for f in nabla_fx])
+
+            cos_sim = F.cosine_similarity(nabla_fx, nabla_fx_adv, dim=0).item()
             wandb.log(
                 {
-                    "train_loss": train,
-                    "target_loss": target,
-                    "lr": current_lr,
-                    "step": step,
+                    "train_loss": fx.item(),
+                    "target_loss": fx_adv.item(),
+                    "cosine_similarity": cos_sim,
+                    "step-size": current_lr,
                 }
             )
-        step += 1
-
         if kettle.args.dryrun:
             break
 
@@ -349,6 +362,7 @@ def run_step(
     current_lr = optimizer.param_groups[0]["lr"]
 
     print_and_save_stats(
+        kettle,
         epoch,
         stats,
         current_lr,
@@ -360,6 +374,7 @@ def run_step(
         target_loss,
         target_clean_acc,
         target_clean_loss,
+        cos_sim,
     )
 
     if DEBUG_TRAINING:
