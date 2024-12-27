@@ -68,6 +68,7 @@ def print_and_save_stats(
                 "train_acc": train_acc,
                 "valid_acc": valid_acc,
                 "target_acc": target_acc,
+                "average_cosine_similarity": cos_sim,
             }
         )
 

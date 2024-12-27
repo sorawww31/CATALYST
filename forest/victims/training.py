@@ -66,74 +66,133 @@ def get_optimizers(model, args, defs):
 
 
 def renewal_wolfecondition_stepsize(
-    kettle, args, defs, model, criterion, alpha, optimizer_lr, targetset, setup
+    kettle, args, model, criterion, alpha_init, targetset, setup
 ):
+    """
+    Wolfe 条件を満たすステップサイズ alpha を探索する。
+    不要な再計算を減らすために、元の勾配を使い回し、deepcopy を最小限にした。
+    """
+    if not targetset:
+        return alpha_init  # ターゲットがないならスキップ
+
     c2, c1 = args.wolfe
+    device = setup["device"]
 
-    def closure_fn(model, inputs, labels):
-        """Compute the loss for the given model, inputs, and labels."""
-        outputs = model(inputs)
-        if args.target_criterion in ["cw", "carlini-wagner"]:
-            criterion_fn = cw_loss  # Carlini-Wagner loss
-        else:
-            criterion_fn = torch.nn.CrossEntropyLoss()  # Default to cross-entropy loss
+    # ----- 1) まずは元の損失と勾配を一度だけ計算してキャッシュ -----
+    # モデルは学習モードではなく eval モードで扱う（勾配計算時は no_grad しないので注意）
+    model.eval()
 
-        loss = criterion_fn(outputs, labels)  # Calculate the loss using the criterion
-        return loss
-
-    copy_model = copy.deepcopy(model)
+    target_images = torch.stack([data[0] for data in targetset]).to(device)
     intended_class = kettle.poison_setup["intended_class"]
-    intended_labels = torch.tensor(intended_class).to(
-        device=setup["device"], dtype=torch.long
-    )
-    target_images = torch.stack([data[0] for data in targetset]).to(**setup)
+    intended_labels = torch.tensor(intended_class, device=device, dtype=torch.long)
 
-    fx = criterion(copy_model(target_images), intended_labels)  # 損失を計算
+    # 元の損失 fx と勾配 nabla_fx
+    fx = criterion(model(target_images), intended_labels)
+    nabla_fx = torch.autograd.grad(fx, model.parameters(), create_graph=True)
 
-    nabla_fx = torch.autograd.grad(fx, copy_model.parameters(), create_graph=True)
+    # ----- 2) Wolfe条件探索用のパラメータ -----
+    alpha = alpha_init
+    max_iters = 40  # 最大反復回数
+    omega = 0.75  # 学習率縮小係数
 
-    # Wolfe条件を満たす学習率を探索
-    max_iters = 40  # 最大で40回の反復を行う
-    omega = 0.75  # 学習率の縮小係数
+    # 勾配を一時保存しておき、あとで計算を再利用しやすくする
+    # パラメータを一列に flatten する
+    nabla_fx_flat = torch.cat([g.view(-1) for g in nabla_fx]).detach()
+
+    # dot(grad, grad) などは再利用すると若干効率が良い
+    nabla_fx_dot = nabla_fx_flat.dot(nabla_fx_flat)
+
+    # ----- 3) テンポラリのパラメータ更新用バッファを用意 -----
+    # モデル本体をdeepcopyするコストを減らすため、パラメータだけバックアップして
+    # alpha 更新後に元に戻すやり方
+    original_params = [p.detach().clone() for p in model.parameters()]
+
     wolfe_satisfied = False
 
     for _ in range(max_iters):
-        # 新しい学習率alphaを使用してモデルを更新
-        copy_model_temp = copy.deepcopy(model)
-        for p, g in zip(copy_model_temp.parameters(), nabla_fx):
-            p.data -= alpha * g
+        # ----- (A) パラメータを alpha だけ進める -----
+        with torch.no_grad():
+            for p, g in zip(model.parameters(), nabla_fx):
+                p -= alpha * g
 
-        # 新しい損失を計算
-        fx_new = criterion(copy_model_temp(target_images), intended_labels)
+        # ----- (B) 新たな損失を計算 -----
+        fx_new = criterion(model(target_images), intended_labels)
 
-        # Wolfeの十分減少条件を確認
-        sufficient_decrease = fx_new <= fx - c1 * alpha * sum(
-            torch.dot(g.view(-1), p.view(-1))
-            for g, p in zip(nabla_fx, copy_model_temp.parameters())
-        )
+        # ----- (C) 十分減少条件 (Armijo 条件) の確認 -----
+        # fx_new <= fx - c1 * alpha * \nabla f(x)^T d
+        # d = -\nabla f(x) なので、\nabla f(x)^T d = - ||\nabla f(x)||^2
+        # ここでは nabla_fx_dot = ||\nabla f(x)||^2
+        lhs = fx_new.item()
+        rhs = fx.item() - c1 * alpha * nabla_fx_dot
+        sufficient_decrease = lhs <= rhs
 
         if sufficient_decrease:
-            # Wolfeの曲率条件を確認
+            # ----- (D) 曲率条件の確認 (Wolfe第二条件) -----
+            # \nabla f(x + alpha d)^T d >= c2 * \nabla f(x)^T d
+            # d = -\nabla f(x)
             nabla_fx_new = torch.autograd.grad(
-                fx_new, copy_model_temp.parameters(), create_graph=True
+                fx_new, model.parameters(), create_graph=True
             )
-            curvature_condition = all(
-                torch.dot(nabla_fx_new[i].view(-1), nabla_fx[i].view(-1))
-                >= c2 * torch.dot(nabla_fx[i].view(-1), nabla_fx[i].view(-1))
-                for i in range(len(nabla_fx))
-            )
-            if curvature_condition:
+            nabla_fx_new_flat = torch.cat([g.view(-1) for g in nabla_fx_new])
+            nabla_fx_new_dot = nabla_fx_new_flat.dot(
+                nabla_fx_flat
+            )  # \nabla f(x+alpha d) dot \nabla f(x)
+            # d = - \nabla f(x) なので \nabla f(x+alpha d)^T d = - nabla_fx_new_dot
+            # \nabla f(x)^T d = - nabla_fx_dot
+            # Wolfe 第二条件: -nabla_fx_new_dot <= - c2 * nabla_fx_dot → nabla_fx_new_dot >= c2 * nabla_fx_dot
+            if nabla_fx_new_dot >= c2 * nabla_fx_dot:
                 wolfe_satisfied = True
                 break
 
-        # 学習率を縮小して再試行
+        # ----- (E) 条件を満たさなかったので alpha を縮小して再トライ -----
+        # モデルパラメータを元に戻してから alpha を更新
+        with torch.no_grad():
+            for p, backup_p in zip(model.parameters(), original_params):
+                p.copy_(backup_p)
         alpha *= omega
+
     if not wolfe_satisfied:
         print(
-            "Wolfe条件を満たす学習率が見つかりませんでした。最小のalphaを使用します。"
+            "Wolfe条件を満たす学習率が見つかりませんでした。alpha={:.6f}を使用します。".format(
+                alpha
+            )
         )
 
+    # 計算のあと、パラメータを元に戻しておく(最終的に実際に alpha を使うときに更新する)
+    with torch.no_grad():
+        for p, backup_p in zip(model.parameters(), original_params):
+            p.copy_(backup_p)
+
     return alpha
+
+
+def check_cosine_similarity(kettle, model, criterion, inputs, labels):
+    device = kettle.setup["device"]
+    model.eval()
+
+    target_images = torch.stack([data[0] for data in kettle.targetset]).to(device)
+    intended_class = kettle.poison_setup["intended_class"]
+    intended_labels = torch.tensor(intended_class, device=device, dtype=torch.long)
+
+    outputs_normal = model(inputs)
+    fx = criterion(outputs_normal, labels)
+
+    # (B) grads_normal を取得
+    grads_normal = torch.autograd.grad(fx, model.parameters(), retain_graph=True)
+    grads_normal_flat = torch.cat([g.view(-1) for g in grads_normal])
+
+    # (C) ターゲットバッチの forward
+    outputs_target = model(target_images)
+    fx_target = criterion(outputs_target, intended_labels)
+
+    # (D) grads_target を取得
+    grads_target = torch.autograd.grad(fx_target, model.parameters())
+    grads_target_flat = torch.cat([g.view(-1) for g in grads_target])
+
+    # (E) Cosine Similarity を一回で計算
+    cos_sim = F.cosine_similarity(grads_normal_flat, grads_target_flat, dim=0)
+
+    return cos_sim.item()
 
 
 def run_step(
@@ -150,7 +209,7 @@ def run_step(
     ablation=True,
 ):
 
-    epoch_loss, total_preds, correct_preds = 0, 0, 0  # <- 追加
+    epoch_loss, total_preds, correct_preds, ave_cos = 0, 0, 0, 0  # <- 追加
     cos_sim = None
 
     if DEBUG_TRAINING:
@@ -305,39 +364,8 @@ def run_step(
 
         if defs.scheduler == "cyclic":
             scheduler.step()
-
         if kettle.args.wandb:
-            copy_model = copy.deepcopy(model)
-            copy_model.eval()
-            intended_class = kettle.poison_setup["intended_class"]
-            intended_labels = torch.tensor(intended_class).to(
-                device=kettle.setup["device"], dtype=torch.long
-            )
-            target_images = torch.stack([data[0] for data in kettle.targetset]).to(
-                **kettle.setup
-            )
-
-            fx_adv = criterion(copy_model(target_images), intended_labels)
-
-            nabla_fx_adv = torch.autograd.grad(
-                fx_adv, copy_model.parameters(), create_graph=True
-            )
-            nabla_fx_adv = torch.cat([f.view(-1) for f in nabla_fx_adv])
-            fx = criterion(copy_model(inputs), labels)
-            nabla_fx = torch.autograd.grad(
-                fx, copy_model.parameters(), create_graph=True
-            )
-            nabla_fx = torch.cat([f.view(-1) for f in nabla_fx])
-
-            cos_sim = F.cosine_similarity(nabla_fx, nabla_fx_adv, dim=0).item()
-            wandb.log(
-                {
-                    "train_loss": fx.item(),
-                    "target_loss": fx_adv.item(),
-                    "cosine_similarity": cos_sim,
-                    "step-size": current_lr,
-                }
-            )
+            ave_cos += check_cosine_similarity(kettle, model, criterion, inputs, labels)
         if kettle.args.dryrun:
             break
 
@@ -375,7 +403,7 @@ def run_step(
         target_loss,
         target_clean_acc,
         target_clean_loss,
-        cos_sim,
+        ave_cos / (batch + 1),
     )
 
     if DEBUG_TRAINING:
