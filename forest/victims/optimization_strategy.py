@@ -231,7 +231,7 @@ class ConservativeStrategy_batch256(Strategy):
         self.augmentations = True
         self.privacy = dict(clip=None, noise=None)
         self.adversarial_steps = 0
-        self.validate = 10
+        self.validate = 5
         self.mixing_method = dict(type="", strength=0.0, correction=False)
         super().__init__(model_name, args)
 
