@@ -373,7 +373,9 @@ def run_step(
         if defs.scheduler == "cyclic":
             scheduler.step()
         if kettle.args.wandb:
-            ave_cos += check_cosine_similarity(kettle, model, criterion, inputs, labels)
+            ave_cos += check_cosine_similarity(
+                kettle, model, criterion, inputs, labels, current_lr
+            )
         if kettle.args.dryrun:
             break
 
