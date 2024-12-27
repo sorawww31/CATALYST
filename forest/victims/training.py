@@ -166,7 +166,7 @@ def renewal_wolfecondition_stepsize(
     return alpha
 
 
-def check_cosine_similarity(kettle, model, criterion, inputs, labels):
+def check_cosine_similarity(kettle, model, criterion, inputs, labels, step_size):
     device = kettle.setup["device"]
     model.eval()
 
@@ -191,7 +191,15 @@ def check_cosine_similarity(kettle, model, criterion, inputs, labels):
 
     # (E) Cosine Similarity を一回で計算
     cos_sim = F.cosine_similarity(grads_normal_flat, grads_target_flat, dim=0)
-
+    if kettle.args.wandb:
+        wandb.log(
+            {
+                "train_loss": fx.item(),
+                "target_loss": fx_target.item(),
+                "cosine_similarity": cos_sim.item(),
+                "step-size": step_size,
+            }
+        )
     return cos_sim.item()
 
 
