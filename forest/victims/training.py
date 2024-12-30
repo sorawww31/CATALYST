@@ -66,102 +66,60 @@ def get_optimizers(model, args, defs):
 
 
 def renewal_wolfecondition_stepsize(
-    kettle, args, model, criterion, alpha_init, targetset, setup
+    kettle, args, defs, model, loss_fn, alpha, optimizer_lr, targetset, setup
 ):
-    """
-    Wolfe 条件を満たすステップサイズ alpha を探索する。
-    不要な再計算を減らすために、元の勾配を使い回し、deepcopy を最小限にした。
-    """
-    if not targetset:
-        return alpha_init  # ターゲットがないならスキップ
-
     c2, c1 = args.wolfe
-    device = setup["device"]
 
-    # ----- 1) まずは元の損失と勾配を一度だけ計算してキャッシュ -----
-    # モデルは学習モードではなく eval モードで扱う（勾配計算時は no_grad しないので注意）
-    model.eval()
-
-    target_images = torch.stack([data[0] for data in targetset]).to(device)
+    copy_model = copy.deepcopy(model)
     intended_class = kettle.poison_setup["intended_class"]
-    intended_labels = torch.tensor(intended_class, device=device, dtype=torch.long)
+    intended_labels = torch.tensor(intended_class).to(
+        device=setup["device"], dtype=torch.long
+    )
+    target_images = torch.stack([data[0] for data in targetset]).to(**setup)
+    fx = loss_fn(copy_model(target_images), intended_labels)  # 損失を計算
 
-    # 元の損失 fx と勾配 nabla_fx
-    fx = criterion(model(target_images), intended_labels)
-    nabla_fx = torch.autograd.grad(fx, model.parameters(), create_graph=True)
+    nabla_fx = torch.autograd.grad(fx, copy_model.parameters(), create_graph=True)
 
-    # ----- 2) Wolfe条件探索用のパラメータ -----
-    alpha = alpha_init
-    max_iters = 40  # 最大反復回数
-    omega = 0.75  # 学習率縮小係数
-
-    # 勾配を一時保存しておき、あとで計算を再利用しやすくする
-    # パラメータを一列に flatten する
-    nabla_fx_flat = torch.cat([g.view(-1) for g in nabla_fx]).detach()
-
-    # dot(grad, grad) などは再利用すると若干効率が良い
-    nabla_fx_dot = nabla_fx_flat.dot(nabla_fx_flat)
-
-    # ----- 3) テンポラリのパラメータ更新用バッファを用意 -----
-    # モデル本体をdeepcopyするコストを減らすため、パラメータだけバックアップして
-    # alpha 更新後に元に戻すやり方
-    original_params = [p.detach().clone() for p in model.parameters()]
-
+    # Wolfe条件を満たす学習率を探索
+    max_iters = 40  # 最大で40回の反復を行う
+    omega = 0.75  # 学習率の縮小係数
     wolfe_satisfied = False
 
     for _ in range(max_iters):
-        # ----- (A) パラメータを alpha だけ進める -----
-        with torch.no_grad():
-            for p, g in zip(model.parameters(), nabla_fx):
-                p -= alpha * g
+        # 新しい学習率alphaを使用してモデルを更新
+        copy_model_temp = copy.deepcopy(model)
+        for p, g in zip(copy_model_temp.parameters(), nabla_fx):
+            p.data -= alpha * g
 
-        # ----- (B) 新たな損失を計算 -----
-        fx_new = criterion(model(target_images), intended_labels)
+        # 新しい損失を計算
+        fx_new = loss_fn(copy_model_temp(target_images), intended_labels)
 
-        # ----- (C) 十分減少条件 (Armijo 条件) の確認 -----
-        # fx_new <= fx - c1 * alpha * \nabla f(x)^T d
-        # d = -\nabla f(x) なので、\nabla f(x)^T d = - ||\nabla f(x)||^2
-        # ここでは nabla_fx_dot = ||\nabla f(x)||^2
-        lhs = fx_new.item()
-        rhs = fx.item() - c1 * alpha * nabla_fx_dot
-        sufficient_decrease = lhs <= rhs
+        # Wolfeの十分減少条件を確認
+        sufficient_decrease = fx_new <= fx - c1 * alpha * sum(
+            torch.dot(g.view(-1), p.view(-1))
+            for g, p in zip(nabla_fx, copy_model_temp.parameters())
+        )
 
         if sufficient_decrease:
-            # ----- (D) 曲率条件の確認 (Wolfe第二条件) -----
-            # \nabla f(x + alpha d)^T d >= c2 * \nabla f(x)^T d
-            # d = -\nabla f(x)
+            # Wolfeの曲率条件を確認
             nabla_fx_new = torch.autograd.grad(
-                fx_new, model.parameters(), create_graph=True
+                fx_new, copy_model_temp.parameters(), create_graph=True
             )
-            nabla_fx_new_flat = torch.cat([g.view(-1) for g in nabla_fx_new])
-            nabla_fx_new_dot = nabla_fx_new_flat.dot(
-                nabla_fx_flat
-            )  # \nabla f(x+alpha d) dot \nabla f(x)
-            # d = - \nabla f(x) なので \nabla f(x+alpha d)^T d = - nabla_fx_new_dot
-            # \nabla f(x)^T d = - nabla_fx_dot
-            # Wolfe 第二条件: -nabla_fx_new_dot <= - c2 * nabla_fx_dot → nabla_fx_new_dot >= c2 * nabla_fx_dot
-            if nabla_fx_new_dot >= c2 * nabla_fx_dot:
+            curvature_condition = all(
+                torch.dot(nabla_fx_new[i].view(-1), nabla_fx[i].view(-1))
+                >= c2 * torch.dot(nabla_fx[i].view(-1), nabla_fx[i].view(-1))
+                for i in range(len(nabla_fx))
+            )
+            if curvature_condition:
                 wolfe_satisfied = True
                 break
 
-        # ----- (E) 条件を満たさなかったので alpha を縮小して再トライ -----
-        # モデルパラメータを元に戻してから alpha を更新
-        with torch.no_grad():
-            for p, backup_p in zip(model.parameters(), original_params):
-                p.copy_(backup_p)
+        # 学習率を縮小して再試行
         alpha *= omega
-
     if not wolfe_satisfied:
         print(
-            "Wolfe条件を満たす学習率が見つかりませんでした。alpha={:.6f}を使用します。".format(
-                alpha
-            )
+            "Wolfe条件を満たす学習率が見つかりませんでした。最小のalphaを使用します。"
         )
-
-    # 計算のあと、パラメータを元に戻しておく(最終的に実際に alpha を使うときに更新する)
-    with torch.no_grad():
-        for p, backup_p in zip(model.parameters(), original_params):
-            p.copy_(backup_p)
 
     return alpha
 

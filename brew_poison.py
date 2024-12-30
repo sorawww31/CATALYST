@@ -24,7 +24,9 @@ if __name__ == "__main__":
     if args.wandb:
         os.environ["WANDB_API_KEY"] = "b89e9995f493fd65200bf57ec07b503531990699"
         print("Logging to wandb...")
-        wandb.init(project=args.name, name=f"{args.poisonkey}_{date.today()}")
+        wandb.init(
+            project=args.name, name=f"{args.name}_{args.poisonkey}_{date.today()}"
+        )
         wandb.config.conservative = f"{args.name}"
 
     setup = forest.utils.system_startup(args)

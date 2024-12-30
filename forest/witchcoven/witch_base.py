@@ -265,7 +265,6 @@ class _Witch:
         """Take a step toward minmizing the current target loss."""
         inputs, labels, ids = example
         poison_delta.grad = torch.zeros_like(poison_delta)
-
         inputs = inputs.to(**self.setup)
         labels = labels.to(
             dtype=torch.long, device=self.setup["device"], non_blocking=NON_BLOCKING
