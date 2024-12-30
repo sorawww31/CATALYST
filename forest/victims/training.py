@@ -299,11 +299,9 @@ def run_step(
             alpha = renewal_wolfecondition_stepsize(
                 kettle,
                 kettle.args,
-                defs,
                 model,
                 criterion,
                 current_lr * 2,
-                optimizer.param_groups[0]["lr"],
                 kettle.targetset,
                 kettle.setup,
             )
