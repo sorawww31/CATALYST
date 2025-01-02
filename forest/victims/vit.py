@@ -9,6 +9,20 @@ from einops.layers.torch import Rearrange
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
 
+def init_weights(m):
+    if isinstance(m, nn.Linear):
+        # Xavierの一種であるxavier_uniform_を適用
+        nn.init.xavier_uniform_(m.weight)
+        if m.bias is not None:
+            nn.init.constant_(m.bias, 0.0)
+    elif isinstance(m, nn.LayerNorm):
+        nn.init.constant_(m.bias, 0.0)
+        nn.init.constant_(m.weight, 1.0)
+    # Conv層を使っているなら、こちらも追加で初期化
+    elif isinstance(m, nn.Conv2d):
+        nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+        if m.bias is not None:
+            nn.init.constant_(m.bias, 0.0)
 # classes
 
 class PreNorm(nn.Module):
@@ -82,19 +96,26 @@ class ViT(nn.Module):
         image_height, image_width = pair(image_size)
         patch_height, patch_width = pair(patch_size)
 
-        assert image_height % patch_height == 0 and image_width % patch_width == 0, 'Image dimensions must be divisible by the patch size.'
+        assert image_height % patch_height == 0 and image_width % patch_width == 0, \
+            'Image dimensions must be divisible by the patch size.'
 
         num_patches = (image_height // patch_height) * (image_width // patch_width)
         patch_dim = channels * patch_height * patch_width
         assert pool in {'cls', 'mean'}, 'pool type must be either cls (cls token) or mean (mean pooling)'
 
+        # [パッチ分割 → Flatten → Linear埋め込み]
         self.to_patch_embedding = nn.Sequential(
-            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
+            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)',
+                      p1=patch_height, p2=patch_width),
             nn.Linear(patch_dim, dim),
         )
 
-        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
-        self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
+        # Positional Embedding, Class Token
+        # ここでは __init__ 内で simple init (normal_) とし、
+        # reset_parameters() の中で詳しく初期化し直します
+        self.pos_embedding = nn.Parameter(torch.zeros(1, num_patches + 1, dim))
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, dim))
+
         self.dropout = nn.Dropout(emb_dropout)
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
@@ -106,6 +127,11 @@ class ViT(nn.Module):
             nn.LayerNorm(dim),
             nn.Linear(dim, num_classes)
         )
+
+        # -----------------------------------
+        #  ここで初期化
+        # -----------------------------------
+        self.reset_parameters()
 
     def forward(self, img):
         x = self.to_patch_embedding(img)
@@ -122,3 +148,26 @@ class ViT(nn.Module):
 
         x = self.to_latent(x)
         return self.mlp_head(x)
+    def reset_parameters(self):
+        """
+        ViT全体で使用しているレイヤーやパラメータを初期化する関数。
+        __init__ から呼ばれるので、インスタンス生成時点で一回だけ実行される。
+        """
+        # pos_embedding, cls_token は小さめの値で初期化 (例: 0.02 * N(0,1))
+        nn.init.normal_(self.pos_embedding, mean=0.0, std=0.02)
+        nn.init.normal_(self.cls_token, mean=0.0, std=0.02)
+
+        # モジュールを再帰的にたどって初期化
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0.0)
+            elif isinstance(m, nn.LayerNorm):
+                nn.init.constant_(m.bias, 0.0)
+                nn.init.constant_(m.weight, 1.0)
+            # Convを使う場合があれば追加
+            # elif isinstance(m, nn.Conv2d):
+            #    nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            #    if m.bias is not None:
+            #        nn.init.constant_(m.bias, 0.0)
