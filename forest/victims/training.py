@@ -66,7 +66,7 @@ def get_optimizers(model, args, defs):
 
 
 def renewal_wolfecondition_stepsize(
-    kettle, args, defs, model, loss_fn, alpha, optimizer_lr, targetset, setup
+    kettle, args, model, loss_fn, alpha, targetset, setup
 ):
     c2, c1 = args.wolfe
 
@@ -292,7 +292,7 @@ def run_step(
                     param.grad += noise_sample
 
         if (
-            (epoch > kettle.args.linesearch_epoch)
+            (epoch >= kettle.args.linesearch_epoch)
             and kettle.args.wolfe
             # and poison_delta is not None
         ):

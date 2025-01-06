@@ -19,17 +19,18 @@ def main():
 
     adversarial_losses = stats.get("target_losses")
     train_losses = stats.get("train_losses")
-    step_sizes = stats.get("learning_rates")
+    step_size = stats.get("learning_rates")
+
     epochs = range(0, len(adversarial_losses))
 
     fig, ax1 = plt.subplots(figsize=(6, 4.5))
 
-    # Plot learning rate on left Y-axis
+    # Plot Step-size on left Y-axis
     color = "tab:red"
     ax1.set_xlabel("Epoch")
-    ax1.set_ylabel("Learning Rate")
+    ax1.set_ylabel("Step-size")
     ax1.set_yscale("log")
-    ax1.plot(epochs, step_sizes, color=color, label="Learning Rate")
+    ax1.plot(epochs, step_size, color=color, label="Step-size")
     ax1.tick_params(axis="y", labelcolor=color)
     ax1.yaxis.set_major_locator(LogLocator(base=10.0, subs=None, numticks=10))
     ax1.yaxis.set_minor_locator(LogLocator(base=10.0, subs=range(1, 10), numticks=10))
@@ -56,7 +57,7 @@ def main():
         ncol=3,  # 凡例を横に並べる
     )
     fig.tight_layout()
-    plt.savefig("stats_rerun_with_legend_below.png", dpi=300, bbox_inches="tight")
+    plt.savefig("step-sizes_losses.png", dpi=300, bbox_inches="tight")
     print(epochs)
 
 
