@@ -55,6 +55,9 @@ def get_model(model_name, dataset_name, pretrained=False):
             model = VGG('VGG16-TI', in_channels=in_channels, num_classes=num_classes)
         elif 'ResNet' in model_name:
             model = resnet_picker(model_name, dataset_name)
+        elif 'vit' in model_name:
+            model = ViT(image_size = int(64), patch_size = 4, num_classes = 200, dim = 128,
+                        depth = 4, heads = 4, mlp_dim = 256, dropout = 0.1, emb_dropout = 0.1)
         else:
             raise ValueError(f'Model {model_name} not implemented for TinyImageNet')
 

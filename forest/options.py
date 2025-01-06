@@ -88,7 +88,7 @@ def options():
     parser.add_argument(
         "--data_path",
         # 最後には変えようね
-        default="/hpc_share/ee217092/CATALYST/datasets",
+        default="./datasets",
         type=str,
     )
     ###########################################################################
