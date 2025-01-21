@@ -14,7 +14,7 @@ trans = transforms.Compose(
 # imagenet_data = torchvision.datasets.ImageFolder('/gpfs/scratch/tomg/data/ILSVRC2012/train',transform=trans)
 
 imagenet_data = torchvision.datasets.ImageFolder(
-    "/hpc_share/ee217092/CATALYST/datasets/imagenet_data/ILSVRC/Annotations/CLS-LOC/train",
+    "/hpc_share/ee217092/CATALYST/datasets/imagenet/",
     transform=trans,
 )
 
