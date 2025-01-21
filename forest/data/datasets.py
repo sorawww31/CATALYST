@@ -346,7 +346,7 @@ class ImageNet(torchvision.datasets.ImageNet):
         try:
             wnid_to_classes = load_meta_file(self.root)[0]
         except RuntimeError:
-            torchvision.datasets.imagenet.META_FILE = os.path.join(os.path.expanduser('~/data/'), 'meta.bin')
+            torchvision.datasets.imagenet.META_FILE = os.path.join(os.path.expanduser(''), 'meta.bin')
             try:
                 wnid_to_classes = load_meta_file(self.root)[0]
             except RuntimeError:
